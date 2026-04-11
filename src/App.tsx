@@ -70,7 +70,7 @@ const truckLeftSideTexture = createTexture(25, 30, [
 function Wheel(x: number) {
   const wheel = new THREE.Mesh(
     new THREE.BoxGeometry(12, 33, 12),
-    new THREE.MeshLambertMaterial({
+    new THREE.MeshPhongMaterial({
       color: 0x333333,
       flatShading: true,
     })
@@ -80,6 +80,57 @@ function Wheel(x: number) {
   return wheel;
 }
 
+function StreetLight(tileIndex: number) {
+  const group = new THREE.Group();
+  group.position.x = tileIndex * tileSize;
+
+  // Pole
+  const pole = new THREE.Mesh(
+    new THREE.BoxGeometry(4, 4, 60),
+    new THREE.MeshPhongMaterial({ color: 0x444444 })
+  );
+  pole.position.z = 30;
+  group.add(pole);
+
+  // Arm
+  const arm = new THREE.Mesh(
+    new THREE.BoxGeometry(15, 4, 4),
+    new THREE.MeshPhongMaterial({ color: 0x444444 })
+  );
+  arm.position.z = 60;
+  arm.position.x = 7.5;
+  group.add(arm);
+
+  // Light Head
+  const head = new THREE.Mesh(
+    new THREE.BoxGeometry(10, 8, 4),
+    new THREE.MeshPhongMaterial({ color: 0x333333 })
+  );
+  head.position.z = 60;
+  head.position.x = 15;
+  group.add(head);
+
+  // The actual light
+  const light = new THREE.PointLight(0xfff0dd, 0, 150, 1.5);
+  light.position.set(15, 0, 55);
+  light.name = "nightLight";
+  light.castShadow = false; // Disabled to prevent "MAX_TEXTURE_IMAGE_UNITS" error
+  light.visible = false;
+  group.add(light);
+
+  // Light bulb mesh (emissive)
+  const bulb = new THREE.Mesh(
+    new THREE.SphereGeometry(3, 8, 8),
+    new THREE.MeshBasicMaterial({ color: 0xfff0dd })
+  );
+  bulb.position.set(15, 0, 58);
+  bulb.name = "nightBulb";
+  bulb.visible = false;
+  group.add(bulb);
+
+  return group;
+}
+
 function Car(initialTileIndex: number, direction: boolean, color: number | string) {
   const car = new THREE.Group();
   car.position.x = initialTileIndex * tileSize;
@@ -87,7 +138,7 @@ function Car(initialTileIndex: number, direction: boolean, color: number | strin
 
   const main = new THREE.Mesh(
     new THREE.BoxGeometry(60, 30, 15),
-    new THREE.MeshLambertMaterial({ color, flatShading: true })
+    new THREE.MeshPhongMaterial({ color, flatShading: true })
   );
   main.position.z = 12;
   main.castShadow = true;
@@ -130,6 +181,66 @@ function Car(initialTileIndex: number, direction: boolean, color: number | strin
   const backWheel = Wheel(-18);
   car.add(backWheel);
 
+  // Headlights
+  const headlightL = new THREE.SpotLight(0xffffff, 0, 250, Math.PI / 6, 0.5, 1);
+  headlightL.position.set(30, -10, 15);
+  headlightL.target.position.set(150, -10, 0);
+  headlightL.name = "nightLight";
+  headlightL.visible = false;
+  car.add(headlightL);
+  car.add(headlightL.target);
+
+  const headlightR = new THREE.SpotLight(0xffffff, 0, 250, Math.PI / 6, 0.5, 1);
+  headlightR.position.set(30, 10, 15);
+  headlightR.target.position.set(150, 10, 0);
+  headlightR.name = "nightLight";
+  headlightR.visible = false;
+  car.add(headlightR);
+  car.add(headlightR.target);
+
+  // Headlight Meshes (Visual glowing part)
+  const headlightMeshL = new THREE.Mesh(
+    new THREE.BoxGeometry(2, 6, 6),
+    new THREE.MeshBasicMaterial({ color: 0xffffff })
+  );
+  headlightMeshL.position.set(30, -10, 15);
+  headlightMeshL.name = "nightBulb";
+  headlightMeshL.visible = false;
+  car.add(headlightMeshL);
+
+  const headlightMeshR = new THREE.Mesh(
+    new THREE.BoxGeometry(2, 6, 6),
+    new THREE.MeshBasicMaterial({ color: 0xffffff })
+  );
+  headlightMeshR.position.set(30, 10, 15);
+  headlightMeshR.name = "nightBulb";
+  headlightMeshR.visible = false;
+  car.add(headlightMeshR);
+
+  // Visual Beams (Semi-transparent cones)
+  const beamGeometry = new THREE.ConeGeometry(15, 80, 8);
+  beamGeometry.rotateX(Math.PI / 2);
+  beamGeometry.translate(0, 0, 40);
+  const beamMaterial = new THREE.MeshBasicMaterial({
+    color: 0xffffff,
+    transparent: true,
+    opacity: 0.15,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+  });
+
+  const beamL = new THREE.Mesh(beamGeometry, beamMaterial);
+  beamL.position.set(30, -10, 15);
+  beamL.name = "nightBulb";
+  beamL.visible = false;
+  car.add(beamL);
+
+  const beamR = new THREE.Mesh(beamGeometry, beamMaterial);
+  beamR.position.set(30, 10, 15);
+  beamR.name = "nightBulb";
+  beamR.visible = false;
+  car.add(beamR);
+
   return car;
 }
 
@@ -140,7 +251,7 @@ function Truck(initialTileIndex: number, direction: boolean, color: number | str
 
   const cargo = new THREE.Mesh(
     new THREE.BoxGeometry(70, 35, 35),
-    new THREE.MeshLambertMaterial({
+    new THREE.MeshPhongMaterial({
       color: 0xb4c6fc,
       flatShading: true,
     })
@@ -152,21 +263,21 @@ function Truck(initialTileIndex: number, direction: boolean, color: number | str
   truck.add(cargo);
 
   const cabin = new THREE.Mesh(new THREE.BoxGeometry(30, 30, 30), [
-    new THREE.MeshLambertMaterial({
+    new THREE.MeshPhongMaterial({
       color,
       flatShading: true,
       map: truckFrontTexture,
     }), // front
-    new THREE.MeshLambertMaterial({
+    new THREE.MeshPhongMaterial({
       color,
       flatShading: true,
     }), // back
-    new THREE.MeshLambertMaterial({
+    new THREE.MeshPhongMaterial({
       color,
       flatShading: true,
       map: truckLeftSideTexture,
     }),
-    new THREE.MeshLambertMaterial({
+    new THREE.MeshPhongMaterial({
       color,
       flatShading: true,
       map: truckRightSideTexture,
@@ -190,6 +301,66 @@ function Truck(initialTileIndex: number, direction: boolean, color: number | str
   const backWheel = Wheel(-35);
   truck.add(backWheel);
 
+  // Headlights
+  const headlightL = new THREE.SpotLight(0xffffff, 0, 300, Math.PI / 6, 0.5, 1);
+  headlightL.position.set(50, -12, 15);
+  headlightL.target.position.set(200, -12, 0);
+  headlightL.name = "nightLight";
+  headlightL.visible = false;
+  truck.add(headlightL);
+  truck.add(headlightL.target);
+
+  const headlightR = new THREE.SpotLight(0xffffff, 0, 300, Math.PI / 6, 0.5, 1);
+  headlightR.position.set(50, 12, 15);
+  headlightR.target.position.set(200, 12, 0);
+  headlightR.name = "nightLight";
+  headlightR.visible = false;
+  truck.add(headlightR);
+  truck.add(headlightR.target);
+
+  // Headlight Meshes
+  const headlightMeshL = new THREE.Mesh(
+    new THREE.BoxGeometry(2, 8, 8),
+    new THREE.MeshBasicMaterial({ color: 0xffffff })
+  );
+  headlightMeshL.position.set(50, -12, 15);
+  headlightMeshL.name = "nightBulb";
+  headlightMeshL.visible = false;
+  truck.add(headlightMeshL);
+
+  const headlightMeshR = new THREE.Mesh(
+    new THREE.BoxGeometry(2, 8, 8),
+    new THREE.MeshBasicMaterial({ color: 0xffffff })
+  );
+  headlightMeshR.position.set(50, 12, 15);
+  headlightMeshR.name = "nightBulb";
+  headlightMeshR.visible = false;
+  truck.add(headlightMeshR);
+
+  // Visual Beams
+  const beamGeometry = new THREE.ConeGeometry(20, 100, 8);
+  beamGeometry.rotateX(Math.PI / 2);
+  beamGeometry.translate(0, 0, 50);
+  const beamMaterial = new THREE.MeshBasicMaterial({
+    color: 0xffffff,
+    transparent: true,
+    opacity: 0.15,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+  });
+
+  const beamL = new THREE.Mesh(beamGeometry, beamMaterial);
+  beamL.position.set(50, -12, 15);
+  beamL.name = "nightBulb";
+  beamL.visible = false;
+  truck.add(beamL);
+
+  const beamR = new THREE.Mesh(beamGeometry, beamMaterial);
+  beamR.position.set(50, 12, 15);
+  beamR.name = "nightBulb";
+  beamR.visible = false;
+  truck.add(beamR);
+
   return truck;
 }
 
@@ -199,7 +370,7 @@ function Tree(tileIndex: number, height: number, isFruitTree: boolean = false) {
 
   const trunk = new THREE.Mesh(
     new THREE.BoxGeometry(10, 10, 20),
-    new THREE.MeshLambertMaterial({
+    new THREE.MeshPhongMaterial({
       color: 0x4d2926,
       flatShading: true,
     })
@@ -212,7 +383,7 @@ function Tree(tileIndex: number, height: number, isFruitTree: boolean = false) {
   const crownColor = isFruitTree ? 0x2d5a27 : 0x7aa21d;
   const crown = new THREE.Mesh(
     new THREE.IcosahedronGeometry(12, 1),
-    new THREE.MeshLambertMaterial({
+    new THREE.MeshPhongMaterial({
       color: crownColor,
       flatShading: true,
     })
@@ -229,7 +400,7 @@ function Tree(tileIndex: number, height: number, isFruitTree: boolean = false) {
     for (let i = 0; i < 5; i++) {
       const fruit = new THREE.Mesh(
         new THREE.SphereGeometry(3, 8, 8),
-        new THREE.MeshLambertMaterial({ color: fruitColor })
+        new THREE.MeshPhongMaterial({ color: fruitColor })
       );
       fruit.position.x = (Math.random() - 0.5) * 25;
       fruit.position.y = (Math.random() - 0.5) * 25;
@@ -248,7 +419,7 @@ function MaizeStalk(tileIndex: number) {
   // Main stalk
   const stem = new THREE.Mesh(
     new THREE.BoxGeometry(4, 4, 40),
-    new THREE.MeshLambertMaterial({ color: 0x8ab33a, flatShading: true })
+    new THREE.MeshPhongMaterial({ color: 0x8ab33a, flatShading: true })
   );
   stem.position.z = 20;
   stem.castShadow = true;
@@ -259,7 +430,7 @@ function MaizeStalk(tileIndex: number) {
   for (let i = 0; i < 4; i++) {
     const leaf = new THREE.Mesh(
       new THREE.BoxGeometry(15, 2, 8),
-      new THREE.MeshLambertMaterial({ color: 0x7aa21d, flatShading: true })
+      new THREE.MeshPhongMaterial({ color: 0x7aa21d, flatShading: true })
     );
     leaf.position.z = 15 + i * 8;
     leaf.rotation.y = (Math.random() - 0.5) * 0.5;
@@ -270,7 +441,7 @@ function MaizeStalk(tileIndex: number) {
   // Cob
   const cob = new THREE.Mesh(
     new THREE.CapsuleGeometry(3, 8, 4, 8),
-    new THREE.MeshLambertMaterial({ color: 0xffd700, flatShading: true })
+    new THREE.MeshPhongMaterial({ color: 0xffd700, flatShading: true })
   );
   cob.position.z = 25;
   cob.position.x = 4;
@@ -288,7 +459,7 @@ function SpinachPatch(tileIndex: number) {
   for (let i = 0; i < 6; i++) {
     const leaf = new THREE.Mesh(
       new THREE.IcosahedronGeometry(8, 0),
-      new THREE.MeshLambertMaterial({ color: 0x2e5a1c, flatShading: true })
+      new THREE.MeshPhongMaterial({ color: 0x2e5a1c, flatShading: true })
     );
     leaf.position.x = (Math.random() - 0.5) * 15;
     leaf.position.y = (Math.random() - 0.5) * 15;
@@ -311,7 +482,7 @@ function Garden(rowIndex: number, type: "fruit" | "maize" | "spinach") {
   if (type === "spinach") grassColor = 0x82c433; // Slightly darker
 
   garden.children.forEach((child: any) => {
-    if (child instanceof THREE.Mesh && child.material instanceof THREE.MeshLambertMaterial) {
+    if (child instanceof THREE.Mesh && child.material instanceof THREE.MeshPhongMaterial) {
       if (child.material.color.getHex() === 0xbaf455) {
         child.material.color.setHex(grassColor);
       }
@@ -333,7 +504,7 @@ function Garden(rowIndex: number, type: "fruit" | "maize" | "spinach") {
 
     const item = new THREE.Mesh(
       geometry,
-      new THREE.MeshLambertMaterial({ color, flatShading: true })
+      new THREE.MeshPhongMaterial({ color, flatShading: true })
     );
     item.position.x = (Math.random() - 0.5) * tilesPerRow * tileSize;
     item.position.y = (Math.random() - 0.5) * tileSize;
@@ -350,7 +521,7 @@ function Grass(rowIndex: number) {
   const createSection = (color: number | string) =>
     new THREE.Mesh(
       new THREE.BoxGeometry(tilesPerRow * tileSize, tileSize, 10),
-      new THREE.MeshLambertMaterial({ color, flatShading: true })
+      new THREE.MeshPhongMaterial({ color, flatShading: true })
     );
 
   const middle = createSection(0xbaf455);
@@ -362,7 +533,7 @@ function Grass(rowIndex: number) {
   for (let i = 0; i < 10; i++) {
     const tuft = new THREE.Mesh(
       new THREE.BoxGeometry(2, 2, 4),
-      new THREE.MeshLambertMaterial({ color: 0x99c846, flatShading: true })
+      new THREE.MeshPhongMaterial({ color: 0x99c846, flatShading: true })
     );
     tuft.position.x = (Math.random() - 0.5) * tilesPerRow * tileSize;
     tuft.position.y = (Math.random() - 0.5) * tileSize;
@@ -394,7 +565,7 @@ function Road(rowIndex: number, linePosition: "top" | "center" | "none" = "top")
   const createSection = (color: number | string) =>
     new THREE.Mesh(
       new THREE.PlaneGeometry(tilesPerRow * tileSize, tileSize),
-      new THREE.MeshLambertMaterial({ color })
+      new THREE.MeshPhongMaterial({ color })
     );
 
   const middle = createSection(0x454a59);
@@ -404,7 +575,7 @@ function Road(rowIndex: number, linePosition: "top" | "center" | "none" = "top")
   // Add white dashed lines
   if (linePosition !== "none") {
     const lineGeometry = new THREE.PlaneGeometry(15, 2);
-    const lineMaterial = new THREE.MeshLambertMaterial({ color: 0xffffff });
+    const lineMaterial = new THREE.MeshPhongMaterial({ color: 0xffffff });
     for (let i = -8; i <= 8; i++) {
       const line = new THREE.Mesh(lineGeometry, lineMaterial);
       line.position.x = i * tileSize;
@@ -432,7 +603,7 @@ function Road(rowIndex: number, linePosition: "top" | "center" | "none" = "top")
 function Bridge(rowIndex: number) {
   const bridge = new THREE.Group();
 
-  const bridgeMaterial = new THREE.MeshLambertMaterial({ color: 0x444444 });
+  const bridgeMaterial = new THREE.MeshPhongMaterial({ color: 0x444444 });
   
   // Left Bridge Wall
   const leftWall = new THREE.Mesh(
@@ -490,7 +661,7 @@ function Player() {
   // Main body
   const body = new THREE.Mesh(
     new THREE.BoxGeometry(15, 15, 15),
-    new THREE.MeshLambertMaterial({
+    new THREE.MeshPhongMaterial({
       color: "white",
       flatShading: true,
     })
@@ -503,7 +674,7 @@ function Player() {
   // Head
   const head = new THREE.Mesh(
     new THREE.BoxGeometry(12, 12, 12),
-    new THREE.MeshLambertMaterial({
+    new THREE.MeshPhongMaterial({
       color: "white",
       flatShading: true,
     })
@@ -517,7 +688,7 @@ function Player() {
   // Comb (Cap)
   const comb = new THREE.Mesh(
     new THREE.BoxGeometry(2, 6, 4),
-    new THREE.MeshLambertMaterial({
+    new THREE.MeshPhongMaterial({
       color: 0xf0619a,
       flatShading: true,
     })
@@ -531,7 +702,7 @@ function Player() {
   // Beak
   const beak = new THREE.Mesh(
     new THREE.BoxGeometry(4, 4, 4),
-    new THREE.MeshLambertMaterial({ color: 0xffa500 })
+    new THREE.MeshPhongMaterial({ color: 0xffa500 })
   );
   beak.position.y = 9;
   beak.position.z = 22;
@@ -539,7 +710,7 @@ function Player() {
 
   // Wings
   const wingGeometry = new THREE.BoxGeometry(3, 8, 8);
-  const wingMaterial = new THREE.MeshLambertMaterial({ color: "white", flatShading: true });
+  const wingMaterial = new THREE.MeshPhongMaterial({ color: "white", flatShading: true });
   
   const leftWing = new THREE.Mesh(wingGeometry, wingMaterial);
   leftWing.position.x = -9;
@@ -553,7 +724,7 @@ function Player() {
 
   // Legs
   const legGeometry = new THREE.BoxGeometry(2, 2, 6);
-  const legMaterial = new THREE.MeshLambertMaterial({ color: 0xffa500 });
+  const legMaterial = new THREE.MeshPhongMaterial({ color: 0xffa500 });
 
   const leftLeg = new THREE.Mesh(legGeometry, legMaterial);
   leftLeg.position.x = -4;
@@ -567,7 +738,7 @@ function Player() {
 
   // Eyes
   const eyeGeometry = new THREE.BoxGeometry(2, 2, 2);
-  const eyeMaterial = new THREE.MeshLambertMaterial({ color: 0x000000 });
+  const eyeMaterial = new THREE.MeshPhongMaterial({ color: 0x000000 });
 
   const leftEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
   leftEye.position.x = -4;
@@ -580,6 +751,13 @@ function Player() {
   rightEye.position.y = 8;
   rightEye.position.z = 26;
   player.add(rightEye);
+
+  // Player light for night time
+  const playerLight = new THREE.PointLight(0xffffff, 0, 100, 1);
+  playerLight.position.z = 40;
+  playerLight.name = "nightLight";
+  playerLight.castShadow = true;
+  player.add(playerLight);
 
   const playerContainer = new THREE.Group();
   playerContainer.add(player);
@@ -679,13 +857,14 @@ function generateRow(rowIndex: number) {
 
 function generateGardenMetadata(lap: number) {
   const gardenTypeIdx = lap % 3;
-  const gardenTypes: ("fruit" | "maize" | "spinach")[] = ["fruit", "maize", "spinach"];
+  const gardenTypes: ("fruit" | "spinach" | "maize")[] = ["fruit", "spinach", "maize"];
   const gardenType = gardenTypes[gardenTypeIdx];
   
   const obstacles = [];
   const occupiedTiles = new Set();
 
-  const obstacleCount = gardenType === "fruit" ? 6 : 8; // More obstacles in maize/spinach
+  // Reduced obstacle count to ensure better gaps (17 tiles total)
+  const obstacleCount = gardenType === "fruit" ? 4 : 5; 
 
   for (let i = 0; i < obstacleCount; i++) {
     let tileIndex;
@@ -785,12 +964,15 @@ export default function App() {
   const [score, setScore] = useState(0);
   const [highScore, setHighScore] = useState(0);
   const [gameOver, setGameOver] = useState(false);
+  const [isNight, setIsNight] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Game State Refs
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.OrthographicCamera | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
+  const ambientLightRef = useRef<THREE.AmbientLight | null>(null);
+  const dirLightRef = useRef<THREE.DirectionalLight | null>(null);
   const playerRef = useRef<THREE.Group | null>(null);
   const mapRef = useRef<THREE.Group | null>(null);
   const metadataRef = useRef<any[]>([]);
@@ -856,6 +1038,10 @@ export default function App() {
       mapRef.current?.add(row);
     } else if (rowData.type === "car") {
       const row = Road(rowIndex, rowData.linePosition);
+      // Add street lights
+      row.add(StreetLight(minTileIndex - 1));
+      row.add(StreetLight(maxTileIndex + 1));
+
       rowData.vehicles.forEach((vehicle: any) => {
         const car = Car(vehicle.initialTileIndex, rowData.direction, vehicle.color);
         vehicle.ref = car;
@@ -864,6 +1050,10 @@ export default function App() {
       mapRef.current?.add(row);
     } else if (rowData.type === "truck") {
       const row = Road(rowIndex, rowData.linePosition);
+      // Add street lights
+      row.add(StreetLight(minTileIndex - 1));
+      row.add(StreetLight(maxTileIndex + 1));
+
       rowData.vehicles.forEach((vehicle: any) => {
         const truck = Truck(vehicle.initialTileIndex, rowData.direction, vehicle.color);
         vehicle.ref = truck;
@@ -991,6 +1181,42 @@ export default function App() {
       });
     }
 
+    // Toggle all night lights based on distance to player to save resources
+    const lightLimit = 400; // Only lights within this distance will be active
+    const shadowLimit = 200; // Only very close lights cast shadows
+    let shadowCount = 0;
+    const maxShadows = 4; // Limit total shadow-casting lights to prevent WebGL errors
+
+    sceneRef.current.traverse((object) => {
+      if (object.name === "nightLight") {
+        if (object instanceof THREE.Light) {
+          const distance = object.getWorldPosition(new THREE.Vector3()).distanceTo(playerRef.current!.position);
+          const isNear = distance < lightLimit;
+          
+          if (isNight && isNear) {
+            object.visible = true;
+            object.intensity = object instanceof THREE.PointLight ? 3 : 10;
+            
+            // Manage shadows dynamically
+            if (distance < shadowLimit && shadowCount < maxShadows) {
+              object.castShadow = true;
+              shadowCount++;
+            } else {
+              object.castShadow = false;
+            }
+          } else {
+            object.visible = false;
+            object.intensity = 0;
+            object.castShadow = false;
+          }
+        }
+      }
+      if (object.name === "nightBulb") {
+        const distance = object.getWorldPosition(new THREE.Vector3()).distanceTo(playerRef.current!.position);
+        object.visible = isNight && distance < lightLimit;
+      }
+    });
+
     if (rendererRef.current && sceneRef.current && cameraRef.current && playerRef.current) {
       // Update camera position to follow player
       // Offset the lookAt target ahead of the player to bring the road "down" to the middle
@@ -1039,9 +1265,11 @@ export default function App() {
 
     // Lighting
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+    ambientLightRef.current = ambientLight;
     scene.add(ambientLight);
 
     const dirLight = new THREE.DirectionalLight(0xffffff, 0.6);
+    dirLightRef.current = dirLight;
     dirLight.position.set(-100, -100, 200);
     dirLight.up.set(0, 0, 1);
     dirLight.castShadow = true;
@@ -1107,6 +1335,8 @@ export default function App() {
 
     const handleWindowClick = () => {
       window.focus();
+      const container = document.querySelector('.fixed.inset-0');
+      if (container instanceof HTMLElement) container.focus();
     };
     window.addEventListener("click", handleWindowClick);
 
@@ -1117,6 +1347,20 @@ export default function App() {
       window.removeEventListener("click", handleWindowClick);
     };
   }, []);
+
+  useEffect(() => {
+    if (!sceneRef.current || !ambientLightRef.current || !dirLightRef.current) return;
+
+    if (isNight) {
+      ambientLightRef.current.intensity = 0.1;
+      dirLightRef.current.intensity = 0.1;
+      sceneRef.current.background = new THREE.Color(0x0a0a1a);
+    } else {
+      ambientLightRef.current.intensity = 0.6;
+      dirLightRef.current.intensity = 0.6;
+      sceneRef.current.background = null;
+    }
+  }, [isNight]);
 
   useEffect(() => {
     window.focus();
@@ -1168,6 +1412,12 @@ export default function App() {
               <div className="px-2 py-0.5 bg-blue-500/20 rounded border border-blue-500/50 text-[10px] font-bold text-blue-400 uppercase">
                 BEST: {highScore}
               </div>
+              <button 
+                onClick={() => setIsNight(!isNight)}
+                className="px-2 py-0.5 bg-indigo-500/20 rounded border border-indigo-500/50 text-[10px] font-bold text-indigo-400 uppercase hover:bg-indigo-500/40 transition-colors pointer-events-auto"
+              >
+                {isNight ? "🌙 NIGHT" : "☀️ DAY"}
+              </button>
             </div>
           </div>
         </div>
